@@ -50,6 +50,8 @@ import java.awt.geom.AffineTransform;
 import java.awt.Graphics;
 import javax.swing.JPanel;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.io.BufferedInputStream;
+import java.io.InputStream;
 
 /*
  * This code is protected under the Gnu General Public License (Copyleft), 2005 by
@@ -190,8 +192,8 @@ public class FruitsBasket extends Game implements Runnable {
 	
 	// Sound volume control
 	private float masterVolume = 0.7f;
-	private float musicVolume = 0.5f;
-	private float sfxVolume = 0.8f;
+	private float musicVolume = 0.2f;
+	private float sfxVolume = 0.2f;
 	
 	// Sound state
 	private boolean soundEnabled = true;
@@ -221,7 +223,11 @@ public class FruitsBasket extends Game implements Runnable {
 	private static final int BOSS_WAVE_INTERVAL = 30; // Every 30 seconds
 	private int lastBossWaveTriggeredSecond = -1; // To prevent multiple boss wave triggers in the same second
 	private boolean bossWaveActive = false;
+	private FruitWithImage bossFruitFwi = null; // Declare boss fruit here
 	
+	// Active power-up display
+	private AnimatedLabel activePowerUpDisplay = null;
+
 	// Achievement system
 	private Set<String> achievements = new HashSet<>();
 	private Map<String, Integer> achievementProgress = new HashMap<>();
@@ -375,29 +381,34 @@ public class FruitsBasket extends Game implements Runnable {
 	}
 
 	public void setupImage() throws IOException {
+		try {
+			// Gets images from the Image Resources folder
+			basketIm = ImageIO.read(getClass().getResourceAsStream("/Image Resources/basket.png"));
+			appleIm = ImageIO.read(getClass().getResourceAsStream("/Image Resources/apple.png"));
+			orangeIm = ImageIO.read(getClass().getResourceAsStream("/Image Resources/orange.png"));
+			watermelonIm = ImageIO.read(getClass().getResourceAsStream("/Image Resources/watermelon.png"));
+			pearIm = ImageIO.read(getClass().getResourceAsStream("/Image Resources/pear.png"));
+			pomegranateIm = ImageIO.read(getClass().getResourceAsStream("/Image Resources/pomegranate.png"));
+			bombIm = ImageIO.read(getClass().getResourceAsStream("/Image Resources/bomb.png"));
+			tntIm = ImageIO.read(getClass().getResourceAsStream("/Image Resources/tnt.png"));
 
-		// Gets images from the Image Resources folder
-		basketIm = ImageIO.read(new File("Image Resources/basket.png"));
-		appleIm = ImageIO.read(new File("Image Resources/apple.png"));
-		orangeIm = ImageIO.read(new File("Image Resources/orange.png"));
-		watermelonIm = ImageIO.read(new File("Image Resources/watermelon.png"));
-		pearIm = ImageIO.read(new File("Image Resources/pear.png"));
-		pomegranateIm = ImageIO.read(new File("Image Resources/pomegranate.png"));
-		bombIm = ImageIO.read(new File("Image Resources/bomb.png"));
-		tntIm = ImageIO.read(new File("Image Resources/tnt.png"));
+			startScreenImage = new ImageIcon(getClass().getResource("/Image Resources/Basket Icon.png"));
+			endScreenImage = new ImageIcon(getClass().getResource("/Image Resources/bomb friends.png"));
 
-		startScreenImage = new ImageIcon("Image Resources/Basket Icon.png");
-		endScreenImage = new ImageIcon("Image Resources/bomb friends.png");
-
-		// Scales images to appropriate sizes
-		scaledBasketIm = scaleImage(basketIm, BASKET_WIDTH, BASKET_HEIGHT + 15);
-		scaledApple = scaleImage(appleIm, FRUIT_WIDTH, FRUIT_HEIGHT);
-		scaledOrange = scaleImage(orangeIm, FRUIT_WIDTH, FRUIT_HEIGHT);
-		scaledWatermelon = scaleImage(watermelonIm, FRUIT_WIDTH, FRUIT_HEIGHT);
-		scaledPear = scaleImage(pearIm, FRUIT_WIDTH, FRUIT_HEIGHT);
-		scaledPomegranate = scaleImage(pomegranateIm, FRUIT_WIDTH, FRUIT_HEIGHT);
-		scaledBomb = scaleImage(bombIm, BOMB_WIDTH, BOMB_HEIGHT);
-		scaledTnt = scaleImage(tntIm, BOMB_WIDTH, BOMB_HEIGHT);
+			// Scales images to appropriate sizes
+			scaledBasketIm = scaleImage(basketIm, BASKET_WIDTH, BASKET_HEIGHT + 15);
+			scaledApple = scaleImage(appleIm, FRUIT_WIDTH, FRUIT_HEIGHT);
+			scaledOrange = scaleImage(orangeIm, FRUIT_WIDTH, FRUIT_HEIGHT);
+			scaledWatermelon = scaleImage(watermelonIm, FRUIT_WIDTH, FRUIT_HEIGHT);
+			scaledPear = scaleImage(pearIm, FRUIT_WIDTH, FRUIT_HEIGHT);
+			scaledPomegranate = scaleImage(pomegranateIm, FRUIT_WIDTH, FRUIT_HEIGHT);
+			scaledBomb = scaleImage(bombIm, BOMB_WIDTH, BOMB_HEIGHT);
+			scaledTnt = scaleImage(tntIm, BOMB_WIDTH, BOMB_HEIGHT);
+		} catch (Exception e) {
+			System.err.println("Error loading image resources: " + e.getMessage());
+			e.printStackTrace();
+			throw new IOException("Failed to load image resources.", e);
+		}
 	}
 
 	/**
@@ -757,48 +768,24 @@ public class FruitsBasket extends Game implements Runnable {
 			bwi.bomb.setState(State.LANDED);
 		}
 		
-		// Reset game state
-		score = 0;
-		seconds = 60;
-		comboCount = 0;
-		maxCombo = 0;
-		gameOver = false;
-		lastBossWaveTriggeredSecond = 60;
-		gameSpeedMultiplier = 1.0f;
-		comboBackgroundActive = false;
-
-		disableZKey();
-		disableXKey();
+		updateHighScores();
 		
-		// Clear all game objects
-		fruits.clear();
-		bombs.clear();
+		// Show game over message
+		String gameOverMessage = "<html><div style='text-align: center; width: 400px;'>" +
+				"<h1><u>Game Over!</u></h1>" +
+				"<h2>Final Score: " + score + "</h2>" +
+				"<h3>High Scores:</h3>" +
+				getHighScoresHTML() +
+				"<br><b>Play Again?</b></div></html>";
 		
-		particles.clear();
-		animatedLabels.clear();
-		deactivatePowerUp();
+		int option = JOptionPane.showOptionDialog(null, gameOverMessage, "Game Over", JOptionPane.YES_NO_OPTION,
+				JOptionPane.INFORMATION_MESSAGE, endScreenImage, new Object[] { "Play Again", "Exit" }, "Play Again");
 		
-		// Restart the game timer
-		gameTime = new Timer(800, e -> updateTimer());
-		gameTime.start();
-		
-		// Restart the animation loop
-		running = true;
-		gameLoopThread = new Thread(() -> {
-			while (running) {
-				updateGame();
-				gamePanel.repaint();
-				try {
-					Thread.sleep(1000 / 60);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-		});
-		gameLoopThread.start();
-		
-		makeBasket();
-		makeFruit();
+		if (option == JOptionPane.YES_OPTION) {
+			resetGame();
+		} else {
+			System.exit(0);
+		}
 	}
 
 	/**
@@ -831,18 +818,35 @@ public class FruitsBasket extends Game implements Runnable {
 		lastBossWaveTriggeredSecond = 60;
 		gameSpeedMultiplier = 1.0f;
 		comboBackgroundActive = false;
+		paddleSpeed = 30; // Reset paddle speed
 		
 		disableZKey();
 		disableXKey();
-
+		
 		// Clear all game objects
 		fruits.clear();
 		bombs.clear();
 		
 		particles.clear();
 		animatedLabels.clear();
-		deactivatePowerUp();
 		
+		// Explicitly reset power-up states
+		isShieldActive = false;
+		isDoublePoints = false;
+		isSlowMotion = false;
+		isFruitMagnet = false;
+		isTimeFreeze = false;
+		currentPowerUp = null;
+		powerUpDuration = 0;
+		activePowerUpDisplay = null;
+		
+		// Reset boss state
+		isBossWave = false;
+		bossHealth = 0;
+		bossWaveTimer = 0;
+		bossWaveActive = false;
+		bossFruitFwi = null; // Clear boss fruit
+
 		// Restart the game timer
 		gameTime = new Timer(800, e -> updateTimer());
 		gameTime.start();
@@ -866,65 +870,97 @@ public class FruitsBasket extends Game implements Runnable {
 		makeFruit();
 	}
 
+	private AudioInputStream loadAudio(String path) throws Exception {
+		InputStream is = getClass().getResourceAsStream(path);
+		if (is == null) {
+			throw new IOException("Could not find sound file: " + path);
+		}
+		BufferedInputStream bis = new BufferedInputStream(is);
+		return AudioSystem.getAudioInputStream(bis);
+	}
+
 	private void setupSounds() {
 		try {
-			// Load sound effects
-			AudioInputStream catchStream = AudioSystem.getAudioInputStream(new File("sounds/catch.wav"));
+			// Load sound effects using getResourceAsStream with buffering
+			AudioInputStream audioIn;
+			
+			// Catch sound
+			audioIn = loadAudio("/sounds/catch.wav");
 			catchSound = AudioSystem.getClip();
-			catchSound.open(catchStream);
+			catchSound.open(audioIn);
 			
-			AudioInputStream bombStream = AudioSystem.getAudioInputStream(new File("sounds/bomb.wav"));
+			// Bomb sound
+			audioIn = loadAudio("/sounds/bomb.wav");
 			bombSound = AudioSystem.getClip();
-			bombSound.open(bombStream);
+			bombSound.open(audioIn);
 			
-			AudioInputStream powerUpStream = AudioSystem.getAudioInputStream(new File("sounds/powerup.wav"));
+			// Power-up sound
+			audioIn = loadAudio("/sounds/powerup.wav");
 			powerUpSound = AudioSystem.getClip();
-			powerUpSound.open(powerUpStream);
+			powerUpSound.open(audioIn);
 			
-			AudioInputStream gameOverStream = AudioSystem.getAudioInputStream(new File("sounds/gameover.wav"));
+			// Game over sound
+			audioIn = loadAudio("/sounds/gameover.wav");
 			gameOverSound = AudioSystem.getClip();
-			gameOverSound.open(gameOverStream);
+			gameOverSound.open(audioIn);
 			
-			AudioInputStream comboStream = AudioSystem.getAudioInputStream(new File("sounds/combo.wav"));
-			comboSound = AudioSystem.getClip();
-			comboSound.open(comboStream);
-			
-			AudioInputStream shieldStream = AudioSystem.getAudioInputStream(new File("sounds/shield.wav"));
-			shieldSound = AudioSystem.getClip();
-			shieldSound.open(shieldStream);
-			
-			AudioInputStream fruitMissStream = AudioSystem.getAudioInputStream(new File("sounds/fruitmiss.wav"));
-			fruitMissSound = AudioSystem.getClip();
-			fruitMissSound.open(fruitMissStream);
-			
-			// Load and start background music
-			AudioInputStream musicStream = AudioSystem.getAudioInputStream(new File("sounds/background.wav"));
+			// Background music
+			audioIn = loadAudio("/sounds/background.wav");
 			backgroundMusic = AudioSystem.getClip();
-			backgroundMusic.open(musicStream);
+			backgroundMusic.open(audioIn);
 			
-			// Set up volume controls
+			// Combo sound
+			audioIn = loadAudio("/sounds/combo.wav");
+			comboSound = AudioSystem.getClip();
+			comboSound.open(audioIn);
+			
+			// Shield sound
+			audioIn = loadAudio("/sounds/shield.wav");
+			shieldSound = AudioSystem.getClip();
+			shieldSound.open(audioIn);
+			
+			// Fruit miss sound
+			try {
+				audioIn = loadAudio("/sounds/miss.wav");
+			} catch (Exception e) {
+				// Try alternate filename if miss.wav is missing
+				audioIn = loadAudio("/sounds/fruitmiss.wav");
+			}
+			fruitMissSound = AudioSystem.getClip();
+			fruitMissSound.open(audioIn);
+			
+			// Set initial volumes
 			setupVolumeControls();
 			
 			// Start background music
-			if (musicEnabled) {
-				playBackgroundMusic();
-			}
+			playBackgroundMusic();
 			
 		} catch (Exception e) {
-			System.out.println("Sound files not found. Game will run without sound effects.");
+			System.err.println("Error loading sound resources: " + e.getMessage());
+			e.printStackTrace();
 		}
 	}
 	
 	private void setupVolumeControls() {
-		// Set up volume controls for all clips
-		FloatControl masterControl = (FloatControl) backgroundMusic.getControl(FloatControl.Type.MASTER_GAIN);
-		masterControl.setValue(20f * (float) Math.log10(masterVolume));
-		
-		FloatControl musicControl = (FloatControl) backgroundMusic.getControl(FloatControl.Type.MASTER_GAIN);
-		musicControl.setValue(20f * (float) Math.log10(musicVolume));
-		
-		FloatControl sfxControl = (FloatControl) catchSound.getControl(FloatControl.Type.MASTER_GAIN);
-		sfxControl.setValue(20f * (float) Math.log10(sfxVolume));
+		setVolume(backgroundMusic, musicVolume);
+		setVolume(catchSound, sfxVolume);
+		setVolume(bombSound, sfxVolume);
+		setVolume(powerUpSound, sfxVolume);
+		setVolume(gameOverSound, sfxVolume);
+		setVolume(comboSound, sfxVolume);
+		setVolume(shieldSound, sfxVolume);
+		setVolume(fruitMissSound, sfxVolume);
+	}
+	
+	private void setVolume(Clip clip, float volume) {
+		if (clip == null) return;
+		try {
+			FloatControl gainControl = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+			float dB = (float) (Math.log10(Math.max(volume, 0.0001)) * 20.0);
+			gainControl.setValue(dB);
+		} catch (Exception e) {
+			// Some clips may not support volume control; ignore
+		}
 	}
 	
 	private void playBackgroundMusic() {
@@ -961,7 +997,7 @@ public class FruitsBasket extends Game implements Runnable {
 		if (Math.random() < 0.1) { // 10% chance to spawn power-up
 			PowerUpType[] types = PowerUpType.values();
 			currentPowerUp = types[(int)(Math.random() * types.length)];
-			powerUpDuration = 10; // 10 seconds duration
+			powerUpDuration = 10 * 60; // 10 seconds duration (converted to frames)
 			
 			// Clear existing power-up effects before applying new ones
 			deactivatePowerUp();
@@ -972,27 +1008,42 @@ public class FruitsBasket extends Game implements Runnable {
 					isShieldActive = true;
 					addVisualEffect("SHIELD ACTIVATED!", Game.screenWidth / 2, 120, Color.CYAN, true);
 					addVisualEffect("Blocks next bomb hit", Game.screenWidth / 2, 160, Color.CYAN, true);
+					activePowerUpDisplay = new AnimatedLabel("SHIELD", Game.screenWidth - 100, 90, Color.CYAN, false);
+					activePowerUpDisplay.duration = Integer.MAX_VALUE; // Make it persist
+					activePowerUpDisplay.font = new Font("Arial Black", Font.BOLD, 24); // Smaller font
 					break;
 				case DOUBLE_POINTS:
 					isDoublePoints = true;
 					addVisualEffect("DOUBLE POINTS!", Game.screenWidth / 2, 120, Color.YELLOW, true);
 					addVisualEffect("2x score for 10 seconds", Game.screenWidth / 2, 160, Color.YELLOW, true);
+					activePowerUpDisplay = new AnimatedLabel("2X POINTS", Game.screenWidth - 100, 90, Color.YELLOW, false);
+					activePowerUpDisplay.duration = Integer.MAX_VALUE;
+					activePowerUpDisplay.font = new Font("Arial Black", Font.BOLD, 24);
 					break;
 				case SLOW_MOTION:
 					isSlowMotion = true;
 					gameSpeedMultiplier = 0.5f;
 					addVisualEffect("SLOW MOTION!", Game.screenWidth / 2, 120, Color.MAGENTA, true);
 					addVisualEffect("Half speed for 10 seconds", Game.screenWidth / 2, 160, Color.MAGENTA, true);
+					activePowerUpDisplay = new AnimatedLabel("SLOW MOTION", Game.screenWidth - 100, 90, Color.MAGENTA, false);
+					activePowerUpDisplay.duration = Integer.MAX_VALUE;
+					activePowerUpDisplay.font = new Font("Arial Black", Font.BOLD, 24);
 					break;
 				case FRUIT_MAGNET:
 					isFruitMagnet = true;
 					addVisualEffect("FRUIT MAGNET!", Game.screenWidth / 2, 120, Color.GREEN, true);
 					addVisualEffect("Attracts fruits for 10 seconds", Game.screenWidth / 2, 160, Color.GREEN, true);
+					activePowerUpDisplay = new AnimatedLabel("MAGNET", Game.screenWidth - 100, 90, Color.GREEN, false);
+					activePowerUpDisplay.duration = Integer.MAX_VALUE;
+					activePowerUpDisplay.font = new Font("Arial Black", Font.BOLD, 24);
 					break;
 				case TIME_FREEZE:
 					isTimeFreeze = true;
 					addVisualEffect("TIME FREEZE!", Game.screenWidth / 2, 120, Color.BLUE, true);
 					addVisualEffect("Timer paused for 10 seconds", Game.screenWidth / 2, 160, Color.BLUE, true);
+					activePowerUpDisplay = new AnimatedLabel("TIME FREEZE", Game.screenWidth - 100, 90, Color.BLUE, false);
+					activePowerUpDisplay.duration = Integer.MAX_VALUE;
+					activePowerUpDisplay.font = new Font("Arial Black", Font.BOLD, 24);
 					break;
 			}
 			
