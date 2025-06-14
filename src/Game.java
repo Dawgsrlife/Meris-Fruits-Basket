@@ -44,10 +44,10 @@ public abstract class Game extends JFrame {
 	private ArrayList _ObjectList = new ArrayList();
 	private Timer _t;
 	
-	// Get Screen Dimensions
+	// Screen Dimensions
 	public static int screenWidth;
 	public static int screenHeight;
-	
+
 	/**
 	 * <code>true</code> if the 'Z' key is being held down
 	 */
@@ -89,6 +89,7 @@ public abstract class Game extends JFrame {
 	/**
 	 * Sets p1Left to be false.
 	 */
+	
 	public void disableZKey() {
 		p1Left = false;
 	}
@@ -96,6 +97,7 @@ public abstract class Game extends JFrame {
 	/**
 	 * Sets p1Right to be false.
 	 */
+	
 	public void disableXKey() {
 		p1Right = false;
 	}
@@ -145,7 +147,7 @@ public abstract class Game extends JFrame {
 	 * method after the frame becomes visible.
 	 */
 	public void initComponents() {
-		Color bgColor = new Color(182, 135, 102); 
+		Color bgColor = new Color(198, 165, 133); 
 		getContentPane().setBackground(bgColor);
 		setup();
 		for (int i = 0; i < _ObjectList.size(); i++) {
@@ -218,8 +220,6 @@ public abstract class Game extends JFrame {
 		screenHeight = (int)(screenSize.height * 0.95);
 		setSize(screenWidth, screenHeight);
 		setLocationRelativeTo(null);
-	//	setExtendedState(JFrame.MAXIMIZED_BOTH); // Full Screen
-		
 		getContentPane().setLayout(null);
         JMenuBar menuBar = new JMenuBar();
         JMenu menuFile = new JMenu("File");
