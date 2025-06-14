@@ -21,8 +21,9 @@ public class Bomb extends GameObject {
 
 	private final int DROP_SPEED = 12; // speed of drop
 	private int bombType;
-	private State currentState = State.DROPPING;
+	private State currentState = State.FALLING;
 	private final int [] BOMB_VALUE = {-3, -5};
+	private int speed = DROP_SPEED;
 	
 	public Bomb(int selectB, int width, int height){
 		int selectBomb = selectB;
@@ -42,12 +43,7 @@ public class Bomb extends GameObject {
 	 * of a fruit from one moment to the next 
 	 */
 	public void act() {
-		
-		if (currentState == State.DROPPING){
-			setY(getY() + DROP_SPEED); // moves bomb down
-		}
-		else if (currentState == State.LANDED){
-		}
+		// Movement handled by FruitsBasket.updateGame()
 	}
 	
 	// Add any additional methods here
@@ -58,6 +54,14 @@ public class Bomb extends GameObject {
 	 */
 	public void setState(State currentState){
 		this.currentState = currentState;
+	}
+	
+	/**
+	 * Gets the current state of the bomb.
+	 * @return the current state
+	 */
+	public State getState() {
+		return currentState;
 	}
 	
 	/**
@@ -74,6 +78,22 @@ public class Bomb extends GameObject {
 	 */
 	public int getBombValue(){
 		return BOMB_VALUE[bombType];
+	}
+	
+	/**
+	 * Gets the current speed of the bomb.
+	 * @return the current speed
+	 */
+	public int getSpeed() {
+		return speed;
+	}
+	
+	/**
+	 * Sets the speed of the bomb.
+	 * @param speed the new speed value
+	 */
+	public void setSpeed(int speed) {
+		this.speed = speed;
 	}
 	
 }

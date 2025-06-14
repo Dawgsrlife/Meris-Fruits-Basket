@@ -147,7 +147,7 @@ public abstract class Game extends JFrame {
 	 * method after the frame becomes visible.
 	 */
 	public void initComponents() {
-		Color bgColor = new Color(198, 165, 133); 
+		Color bgColor = new Color(0, 0, 0, 0); // Fully transparent
 		getContentPane().setBackground(bgColor);
 		setup();
 		for (int i = 0; i < _ObjectList.size(); i++) {
